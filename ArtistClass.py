@@ -15,13 +15,12 @@ class Artist(object):
         songs = set()
         songsList = artistsDict.get(self.__id, None)
         if songsList == None:
-            raise RuntimeError('no such aritist')
+            print 'no such aritist ' + self.__id
+            return
         for row in songsList:
             songId = row[0]
             newSong = Song(songId, row)
             usersList = songsDict.get(songId, None)
-            if usersList == None:
-                raise RuntimeError('no such song')
             newSong.makeTrace(usersList)
             songs.add(newSong)
         self.__gender = songsList[0][5]
@@ -39,11 +38,14 @@ class Artist(object):
             collectSum = [0 for i in range(utils.days)]
             usersSum = [0 for i in range(utils.days)]
             for song in self.__songsSet:
+                trace = song.getTrace()
+                if trace == []:
+                    print 'skip song ' + song.getId()
+                    continue
                 file.write(song.getId() + '\n')
                 file.write(song.getIssueTime() + '\n')
                 file.write(song.getInitPlay() + '\n')
                 file.write(song.getLanguage() + '\n')
-                trace = song.getTrace()
                 play = [trace[i].play for i in range(utils.days)]
                 download = [trace[i].download for i in range(utils.days)]
                 collect = [trace[i].collect for i in range(utils.days)]

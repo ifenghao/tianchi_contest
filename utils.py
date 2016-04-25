@@ -47,24 +47,6 @@ def trimFileInCol(col, fileName):
     return dict
 
 
-def trimFileInCol2(col, fileName):
-    '''
-    按照某关键列整理文件，将包含此关键列的内容到字典中
-    '''
-    import csv
-
-    dict = {}
-    with open(fileName) as file:
-        rowReader = csv.reader(file, delimiter=',')
-        for row in rowReader:
-            if not dict.has_key(row[col]):
-                dict[row[col]] = []
-            list = dict[row[col]]
-            list.append(row)
-            break
-    return dict
-
-
 def date2num(date):
     return (int(time.mktime(time.strptime(date, '%Y%m%d'))) - startTime) // secondsPerDay
 

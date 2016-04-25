@@ -14,6 +14,9 @@ class Song(object):
         self.__trace = []  # 列表
 
     def makeTrace(self, usersList):
+        if usersList == None:
+            print 'no such song users list' + self.__id
+            return []
         traceList = [Action(i) for i in range(utils.days)]
         for row in usersList:
             dateNum = utils.date2num(row[4])
