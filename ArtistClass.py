@@ -9,9 +9,9 @@ class Artist(object):
     def __init__(self, artistId):
         self.__id = artistId
         self.__gender = 0
-        self.__songsSet = set()  # 整理出的每天歌曲的播放，下载，收藏数据
+        self.__songsOwned = set()  # 整理出的每天歌曲的播放，下载，收藏数据
 
-    def makeSongsSet(self, artistsDict, songsDict):
+    def makeSongsOwned(self, artistsDict, songsDict, usersObjectDict):
         songs = set()
         songsList = artistsDict.get(self.__id, None)
         if songsList == None:
@@ -20,15 +20,15 @@ class Artist(object):
         for row in songsList:
             songId = row[0]
             newSong = Song(songId, row)
-            usersList = songsDict.get(songId, None)
-            newSong.makeTrace(usersList)
+            songWithUsersList = songsDict.get(songId, None)
+            newSong.makeDailyTrace(songWithUsersList, usersObjectDict)
             songs.add(newSong)
         self.__gender = songsList[0][5]
-        self.__songsSet = songs
+        self.__songsOwned = songs
         return
 
-    def saveSongsSet(self):
-        resultFilePath = os.path.join(utils.resultPath, self.__id)
+    def saveSongsOwned(self):
+        resultFilePath = os.path.join(utils.resultPath, 'artists', self.__id)
         if not os.path.exists(resultFilePath):
             os.makedirs(resultFilePath)
         resultFile = os.path.join(resultFilePath, 'statistics.txt')
@@ -37,19 +37,16 @@ class Artist(object):
             downloadSum = [0 for i in range(utils.days)]
             collectSum = [0 for i in range(utils.days)]
             usersSum = [0 for i in range(utils.days)]
-            for song in self.__songsSet:
-                trace = song.getTrace()
-                if trace == []:
-                    print 'skip song ' + song.getId()
-                    continue
+            for song in self.__songsOwned:
+                dailyTrace = song.getDailyTrace()
                 file.write(song.getId() + '\n')
                 file.write(song.getIssueTime() + '\n')
                 file.write(song.getInitPlay() + '\n')
                 file.write(song.getLanguage() + '\n')
-                play = [trace[i].play for i in range(utils.days)]
-                download = [trace[i].download for i in range(utils.days)]
-                collect = [trace[i].collect for i in range(utils.days)]
-                users = [len(trace[i].users) for i in range(utils.days)]
+                play = [dailyTrace[i].getPlaySum for i in range(utils.days)]
+                download = [dailyTrace[i].getDownloadSum for i in range(utils.days)]
+                collect = [dailyTrace[i].getCollectSum for i in range(utils.days)]
+                users = [dailyTrace[i].getActiveUsersNumber for i in range(utils.days)]
                 file.write(','.join(map(str, play)) + '\n')
                 file.write(','.join(map(str, download)) + '\n')
                 file.write(','.join(map(str, collect)) + '\n')

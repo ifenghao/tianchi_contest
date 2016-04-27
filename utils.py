@@ -2,13 +2,14 @@ __author__ = 'zfh'
 # coding:utf-8
 import time, os
 import matplotlib.pyplot as plt
+from UserClass import User
 
 startTime = int(time.mktime(time.strptime('20150301', '%Y%m%d')))
 secondsPerDay = 86400
 days = 183
 currentPath = os.getcwd()
 usersFileName = 'mars_tianchi_user_actions.csv'
-usersFile = os.path.join('/home/zfh','dataset', usersFileName)
+usersFile = os.path.join('/home/zfh', 'dataset', usersFileName)
 songsFileName = 'mars_tianchi_songs.csv'
 songsFile = os.path.join('/home/zfh', 'dataset', songsFileName)
 
@@ -33,6 +34,7 @@ def searchKeyInFile(key, fileName):
 def trimFileInCol(col, fileName):
     '''
     按照某关键列整理文件，将包含此关键列的内容到字典中
+    key=列元素:value=有关此列的列表
     '''
     import csv
 
@@ -47,14 +49,29 @@ def trimFileInCol(col, fileName):
     return dict
 
 
+def analyseUsers(usersDict):
+    '''
+    分析所有用户的行为构建用户字典，判断其活跃与否
+    key=用户ID:value=用户对象
+    '''
+    dict = {}
+    for userId in usersDict.keys():
+        user = User(userId)
+        user.makeSongsTried(usersDict)
+        user.setActive()
+        dict[userId] = user
+    return dict
+
+
 def date2num(date):
     return (int(time.mktime(time.strptime(date, '%Y%m%d'))) - startTime) // secondsPerDay
 
 
-def plotSongsTrace(artistId):
-    resultFilePath = os.path.join(resultPath, artistId)
+def plotArtistSongsTrace(artistId):
+    resultFilePath = os.path.join(resultPath, 'artists', artistId)
     if not os.path.exists(resultFilePath):
-        os.makedirs(resultFilePath)
+        print resultFilePath + ' not exist'
+        return
     resultFile = os.path.join(resultFilePath, 'statistics.txt')
     with open(resultFile, 'r') as file:
         while True:
@@ -78,3 +95,42 @@ def plotSongsTrace(artistId):
             plt.title('id:' + songId + '\n' + issueTime + '-' + initPlay + '-' + language)
             plt.savefig(os.path.join(resultFilePath, songId + ".png"))
             plt.clf()
+
+
+def plotUserSongsRecord(userId):
+    resultFilePath = os.path.join(resultPath, 'users')
+    if not os.path.exists(resultFilePath):
+        print resultFilePath + ' not exist'
+        return
+    resultFile = os.path.join(resultFilePath, userId + '.txt')
+    with open(resultFile, 'r') as file:
+        play = []
+        download = []
+        collect = []
+        songsTriedNumber = 0
+        playSum = 0
+        downloadSum = 0
+        collectSum = 0
+        while True:
+            songId = file.readline().strip('\n')
+            if not songId:
+                break
+            if songId.find('sum:') != -1:
+                songsTriedNumber = map(int, file.readline().strip('\n').split(','))
+                playSum = map(int, file.readline().strip('\n').split(','))
+                downloadSum = map(int, file.readline().strip('\n').split(','))
+                collectSum = map(int, file.readline().strip('\n').split(','))
+            else:
+                play.append(map(int, file.readline().strip('\n').split(',')))
+                download.append(map(int, file.readline().strip('\n').split(',')))
+                collect.append(map(int, file.readline().strip('\n').split(',')))
+        p = plt.plot(play, 'bo', play, 'b-')
+        d = plt.plot(download, 'ro', download, 'r-')
+        c = plt.plot(collect, 'go', collect, 'g-')
+        plt.legend([p[1], d[1], c[1]], ['play', 'download', 'collect'])
+        plt.xlabel('songs')
+        plt.ylabel('counts')
+        plt.title('songs:' + str(songsTriedNumber) + '\n' + \
+                  str(playSum) + '-' + str(downloadSum) + '-' + str(collectSum))
+        plt.savefig(os.path.join(resultFilePath, userId + ".png"))
+        plt.clf()
