@@ -14,7 +14,7 @@ class Song(object):
         self.__dailyTrace = []  # 日活动列表
 
     def makeDailyTrace(self, songWithUsersList, usersObjectDict):
-        list = [DayAction(i) for i in range(utils.days)]
+        trace = [DayAction(i) for i in range(utils.days)]
         if songWithUsersList == None:
             print 'empty song users list ' + self.__id
         else:
@@ -22,7 +22,7 @@ class Song(object):
                 user = usersObjectDict.get(row[0])  # 查看用户是否活跃
                 if user.isActive():
                     dateNum = utils.date2num(row[4])
-                    dayAction = list[dateNum]
+                    dayAction = trace[dateNum]
                     dayAction.addActiveUser(row[0])
                     if row[3] == '1':
                         dayAction.increasePlay()
@@ -30,7 +30,7 @@ class Song(object):
                         dayAction.increaseDownload()
                     elif row[3] == '3':
                         dayAction.increaseCollect()
-        self.__dailyTrace = list
+        self.__dailyTrace = trace
         return
 
     def getId(self):

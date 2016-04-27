@@ -9,9 +9,9 @@ secondsPerDay = 86400
 days = 183
 currentPath = os.getcwd()
 usersFileName = 'mars_tianchi_user_actions.csv'
-usersFile = os.path.join('/home/zfh', 'dataset', usersFileName)
+usersFile = os.path.join('/home/zhufenghao', 'dataset', usersFileName)
 songsFileName = 'mars_tianchi_songs.csv'
-songsFile = os.path.join('/home/zfh', 'dataset', songsFileName)
+songsFile = os.path.join('/home/zhufenghao', 'dataset', songsFileName)
 
 resultPath = os.path.join(currentPath, 'result')
 
@@ -58,7 +58,6 @@ def analyseUsers(usersDict):
     for userId in usersDict.keys():
         user = User(userId)
         user.makeSongsTried(usersDict)
-        user.setActive()
         dict[userId] = user
     return dict
 

@@ -20,4 +20,4 @@ for userId in usersDict.keys():
     user = User(userId)
     user.makeSongsTried(usersDict)
     user.saveSongsTried()
-    utils.plotUserSongsRecord(userId)
+    user.saveSongsTriedTrace()

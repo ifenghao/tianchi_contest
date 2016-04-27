@@ -3,9 +3,9 @@ __author__ = 'zfh'
 
 class UserAction(object):
     def __init__(self):
-        self.__play=0
-        self.__download=0
-        self.__collect=0
+        self.__play = 0
+        self.__download = 0
+        self.__collect = 0
 
     def increasePlay(self):
         self.__play += 1
