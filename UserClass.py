@@ -14,7 +14,7 @@ class User(object):
         self.__playSum = 0
         self.__downloadSum = 0
         self.__collectSum = 0
-        self.__songsTriedNumber = 0
+        self.__songsTriedTotal = 0
         self.__songsTried = {}  # 用户尝试过的所有歌曲 key=歌曲ID:value=用户行为(聚类依据)
         self.__songsTriedTrace = []  # 用户尝试歌曲的时间轨迹 每天用户行为(判断活跃度依据)
 
@@ -35,45 +35,35 @@ class User(object):
             elif row[3] == '3':
                 userAction.increaseCollect()
                 self.__collectSum += 1
-        self.__songsTriedNumber = len(songs)
+        self.__songsTriedTotal = len(songs)
         self.__songsTried = songs
-        if self.__songsTriedNumber <= 3 and self.__playSum <= 3 and \
+        if self.__songsTriedTotal <= 3 and self.__playSum <= 3 and \
                         self.__downloadSum <= 3 and self.__collectSum <= 3:
             self.__isActive = False  # 过于不活跃的用户
             return
         trace = [UserAction() for i in range(utils.days)]
         for row in userWithSongsList:
-                dateNum = utils.date2num(row[4])
-                userAction = trace[dateNum]
-                if row[3] == '1':
-                    userAction.increasePlay()
-                elif row[3] == '2':
-                    userAction.increaseDownload()
-                elif row[3] == '3':
-                    userAction.increaseCollect()
+            dateNum = utils.date2num(row[4])
+            userAction = trace[dateNum]
+            if row[3] == '1':
+                userAction.increasePlay()
+            elif row[3] == '2':
+                userAction.increaseDownload()
+            elif row[3] == '3':
+                userAction.increaseCollect()
         self.__songsTriedTrace = trace
         return
 
-    def saveSongsTried(self):
-        if not self.__isActive:
-            return
-        resultFilePath = os.path.join(utils.resultPath, 'users')
-        if not os.path.exists(resultFilePath):
-            os.makedirs(resultFilePath)
-        resultFile = os.path.join(resultFilePath, 'songs ' + self.__id + '.txt')
-        with open(resultFile, 'w') as file:
-            for songId, userAction in self.__songsTried.items():
-                file.write(songId + '\n')
-                file.write(str(userAction.getPlay()) + '\n')
-                file.write(str(userAction.getDownload()) + '\n')
-                file.write(str(userAction.getCollect()) + '\n')
-            file.write('sum:' + '\n')
-            file.write(str(self.__songsTriedNumber) + '\n')
-            file.write(str(self.__playSum) + '\n')
-            file.write(str(self.__downloadSum) + '\n')
-            file.write(str(self.__collectSum) + '\n')
+    def saveSongsTried(self, file):
+        file.write('user id:' + self.__id + '\n')
+        for songId, userAction in self.__songsTried.items():
+            file.write(songId + '\n')
+            file.write(str(userAction.getPlay()) + '\n')
+            file.write(str(userAction.getDownload()) + '\n')
+            file.write(str(userAction.getCollect()) + '\n')
+        file.write('\n')
 
-    def plotUserSongsRecord(self):
+    def plotSongsTried(self):
         resultFilePath = os.path.join(utils.resultPath, 'users')
         if not os.path.exists(resultFilePath):
             os.makedirs(resultFilePath)
@@ -91,25 +81,25 @@ class User(object):
         plt.legend([p[1], d[1], c[1]], ['play', 'download', 'collect'])
         plt.xlabel('songs')
         plt.ylabel('counts')
-        plt.title('songs:' + str(self.__songsTriedNumber) + '\n' + \
+        plt.title('songs:' + str(self.__songsTriedTotal) + '\n' + \
                   str(self.__playSum) + '-' + str(self.__downloadSum) + '-' + str(self.__collectSum))
         plt.savefig(os.path.join(resultFilePath, 'songs ' + self.__id + ".png"))
         plt.clf()
 
-    def saveSongsTriedTrace(self):
-        if not self.__isActive:
-            return
-        resultFilePath = os.path.join(utils.resultPath, 'users')
-        if not os.path.exists(resultFilePath):
-            os.makedirs(resultFilePath)
-        resultFile = os.path.join(resultFilePath, 'trace ' + self.__id + '.txt')
-        with open(resultFile, 'w') as file:
-            for userAction in self.__songsTriedTrace:
-                file.write(str(userAction.getPlay()) + '\n')
-                file.write(str(userAction.getDownload()) + '\n')
-                file.write(str(userAction.getCollect()) + '\n')
+    def saveSongsTriedTrace(self, file):
+        play = []
+        download = []
+        collect = []
+        for userAction in self.__songsTriedTrace:
+            play.append(userAction.getPlay())
+            download.append(userAction.getDownload())
+            collect.append(userAction.getCollect())
+        file.write(self.__id + '\n')
+        file.write(','.join(map(str, play)) + '\n')
+        file.write(','.join(map(str, download)) + '\n')
+        file.write(','.join(map(str, collect)) + '\n')
 
-    def plotUserSongsTriedTrace(self):
+    def plotSongsTriedTrace(self):
         resultFilePath = os.path.join(utils.resultPath, 'users')
         if not os.path.exists(resultFilePath):
             os.makedirs(resultFilePath)
@@ -127,7 +117,8 @@ class User(object):
         plt.legend([p[1], d[1], c[1]], ['play', 'download', 'collect'])
         plt.xlabel('days')
         plt.ylabel('counts')
-        plt.title('user:' + str(self.__id))
+        plt.title('user:' + str(self.__id) + \
+                  str(self.__playSum) + '-' + str(self.__downloadSum) + '-' + str(self.__collectSum))
         plt.savefig(os.path.join(resultFilePath, 'trace ' + self.__id + ".png"))
         plt.clf()
 
