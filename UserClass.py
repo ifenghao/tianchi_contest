@@ -42,17 +42,22 @@ class User(object):
             actionMean = np.mean(actionTrace[np.nonzero(actionTrace)])
             if actionMean <= 3 and percent < 0.2:
                 self.__isActive = False
-                savePath = os.path.join(utils.resultPath, 'inactive users')
-                if os.path.exists(savePath):
-                    os.makedirs(savePath)
-                plt.figure(figsize=(6, 4))
-                self.plotSongsTried([entropy, percent, actionMean])
-                plt.savefig(os.path.join(savePath, self.__id + "songs.png"))
-                plt.close()
-                plt.figure(figsize=(6, 4))
-                self.plotSongsTriedTrace([entropy, percent, actionMean])
-                plt.savefig(os.path.join(savePath, self.__id + "trace.png"))
-                plt.close()
+        # if not self.__isActive:
+        #     entropy = utils.entropy(self.__actonTrace)
+        #     entropyMax = utils.entropy([1 for __ in range(utils.days)])
+        #     percent = entropy / entropyMax
+        #     actionTrace = np.array(self.__actonTrace)
+        #     actionMean = np.mean(actionTrace[np.nonzero(actionTrace)])
+        #     savePath = os.path.join(utils.resultPath, 'inactive users')
+        #     if os.path.exists(savePath):
+        #         os.makedirs(savePath)
+        #     plt.figure(figsize=(6, 4))
+        #     self.plotSongsTried([entropy, percent, actionMean])
+        #     plt.savefig(os.path.join(savePath, self.__id + "songs.png"))
+        #     plt.clf()
+        #     self.plotSongsTriedTrace([entropy, percent, actionMean])
+        #     plt.savefig(os.path.join(savePath, self.__id + "trace.png"))
+        #     plt.close()
         return
 
     def sumAction(self):

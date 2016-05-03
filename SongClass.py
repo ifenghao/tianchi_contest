@@ -48,13 +48,19 @@ class Song(object):
             actionMean = np.mean(usersTraceArray[np.nonzero(usersTraceArray)])
             if actionMean <= 3 and percent < 0.3:
                 self.__popular = False
-                savePath = os.path.join(utils.resultPath, 'unpopular songs')
-                if os.path.exists(savePath):
-                    os.makedirs(savePath)
-                plt.figure(figsize=(6, 4))
-                self.plotTrace([entropy, percent, actionMean])
-                plt.savefig(os.path.join(savePath, self.__id + ".png"))
-                plt.close()
+        # if not self.__popular:
+        #     entropy = utils.entropy(self.__usersTrace)
+        #     entropyMax = utils.entropy([1 for __ in range(utils.days)])
+        #     percent = entropy / entropyMax
+        #     usersTraceArray = np.array(self.__usersTrace)
+        #     actionMean = np.mean(usersTraceArray[np.nonzero(usersTraceArray)])
+        #     savePath = os.path.join(utils.resultPath, 'unpopular songs')
+        #     if os.path.exists(savePath):
+        #         os.makedirs(savePath)
+        #     plt.figure(figsize=(6, 4))
+        #     self.plotTrace([entropy, percent, actionMean])
+        #     plt.savefig(os.path.join(savePath, self.__id + ".png"))
+        #     plt.close()
         return
 
     def plotTrace(self, title):
@@ -104,4 +110,4 @@ class Song(object):
         return self.__collectTrace
 
     def getUsersTrace(self):
-        return map(len, self.__usersTrace)
+        return self.__usersTrace

@@ -7,7 +7,8 @@ import os
 import utils
 import cPickle
 
-os.makedirs(utils.resultPath)
+if os.path.exists(utils.resultPath):
+    os.makedirs(utils.resultPath)
 
 usersDict = utils.trimFileInCol(0, utils.usersFile)
 usersObjectDict = utils.analyseUsers(usersDict)  # 分析用户活跃程度
@@ -28,7 +29,8 @@ for artistId, songsList in artistsDict.items():
     artist = Artist(artistId)
     artist.makeSongsOwned(songsList, songsDict)
     savePath = os.path.join(utils.resultPath, 'artists')
-    os.makedirs(savePath)
+    if not os.path.exists(savePath):
+        os.makedirs(savePath)
     artistFile = os.path.join(savePath, artistId + '.pkl')
     with open(artistFile, 'w') as file:
         cPickle.dump(artist, file)

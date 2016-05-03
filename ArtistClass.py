@@ -27,11 +27,13 @@ class Artist(object):
         self.__songsOwned = songs
         return
 
-    def conbineUnpopularSongs(self):
+    def combineUnpopularSongs(self):
         playTrace = [0 for __ in range(utils.days)]
         downloadTrace = [0 for __ in range(utils.days)]
         collectTrace = [0 for __ in range(utils.days)]
         userTrace = [0 for __ in range(utils.days)]
+        totalSongs=len(self.__songsOwned)
+        combineSongs=0
         for songId, song in self.__songsOwned.items():
             if not song.getPopular():
                 playTrace = [i + j for i, j in zip(playTrace, song.getPlayTrace())]
@@ -39,6 +41,8 @@ class Artist(object):
                 collectTrace = [i + j for i, j in zip(collectTrace, song.getCollectTrace())]
                 userTrace = [i + j for i, j in zip(userTrace, song.getUsersTrace())]
                 self.__songsOwned.popitem()
+                combineSongs+=1
+        print 'artist:'+self.__id+' = '+str(combineSongs)+'/'+str(totalSongs)
         unpopularSongsGroup = Song('unpopularSongsGroup', [0, 0, 0, 0, 0])
         unpopularSongsGroup.setPopular(False)
         unpopularSongsGroup.setTrace([playTrace, downloadTrace, collectTrace, userTrace])
@@ -53,3 +57,6 @@ class Artist(object):
             song.plotTrace()
             plt.savefig(os.path.join(savePath, songId + "--.png"))
             plt.close()
+
+    def getSongsOwned(self):
+        return self.__songsOwned
