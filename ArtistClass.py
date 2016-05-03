@@ -3,63 +3,53 @@ __author__ = 'zfh'
 import utils
 from SongClass import Song
 import os
+import matplotlib.pyplot as plt
 
 
 class Artist(object):
     def __init__(self, artistId):
         self.__id = artistId
         self.__gender = 0
-        self.__songsOwned = set()  # 整理出的每天歌曲的播放，下载，收藏数据
+        self.__songsOwned = {}  # 歌曲字典 key=歌曲ID:value=歌曲类
 
-    def makeSongsOwned(self, artistsDict, songsDict, usersObjectDict):
-        songs = set()
-        songsList = artistsDict.get(self.__id, None)
+    def makeSongsOwned(self, songsList, songsDict):
         if songsList == None:
-            print 'no such aritist ' + self.__id
+            print 'empty songs list ' + self.__id
             return
+        songs = {}
         for row in songsList:
             songId = row[0]
             newSong = Song(songId, row)
             songWithUsersList = songsDict.get(songId, None)
-            newSong.makeDailyTrace(songWithUsersList, usersObjectDict)
-            songs.add(newSong)
+            newSong.makeTrace(songWithUsersList)
+            songs[songId] = newSong
         self.__gender = songsList[0][5]
         self.__songsOwned = songs
         return
 
-    def saveSongsOwned(self):
-        resultFilePath = os.path.join(utils.resultPath, 'artists', self.__id)
-        if not os.path.exists(resultFilePath):
-            os.makedirs(resultFilePath)
-        resultFile = os.path.join(resultFilePath, 'statistics.txt')
-        with open(resultFile, 'w') as file:
-            playSum = [0 for i in range(utils.days)]
-            downloadSum = [0 for i in range(utils.days)]
-            collectSum = [0 for i in range(utils.days)]
-            usersSum = [0 for i in range(utils.days)]
-            for song in self.__songsOwned:
-                dailyTrace = song.getDailyTrace()
-                file.write(song.getId() + '\n')
-                file.write(song.getIssueTime() + '\n')
-                file.write(song.getInitPlay() + '\n')
-                file.write(song.getLanguage() + '\n')
-                play = [dailyTrace[i].getPlaySum for i in range(utils.days)]
-                download = [dailyTrace[i].getDownloadSum for i in range(utils.days)]
-                collect = [dailyTrace[i].getCollectSum for i in range(utils.days)]
-                users = [dailyTrace[i].getActiveUsersNumber for i in range(utils.days)]
-                file.write(','.join(map(str, play)) + '\n')
-                file.write(','.join(map(str, download)) + '\n')
-                file.write(','.join(map(str, collect)) + '\n')
-                file.write(','.join(map(str, users)) + '\n')
-                playSum = [i + j for i, j in zip(play, playSum)]
-                downloadSum = [i + j for i, j in zip(download, downloadSum)]
-                collectSum = [i + j for i, j in zip(collect, collectSum)]
-                usersSum = [i + j for i, j in zip(users, usersSum)]
-            file.write('sum' + '\n')
-            file.write('00' + '\n')
-            file.write('00' + '\n')
-            file.write('00' + '\n')
-            file.write(','.join(map(str, playSum)) + '\n')
-            file.write(','.join(map(str, downloadSum)) + '\n')
-            file.write(','.join(map(str, collectSum)) + '\n')
-            file.write(','.join(map(str, usersSum)) + '\n')
+    def conbineUnpopularSongs(self):
+        playTrace = [0 for __ in range(utils.days)]
+        downloadTrace = [0 for __ in range(utils.days)]
+        collectTrace = [0 for __ in range(utils.days)]
+        userTrace = [0 for __ in range(utils.days)]
+        for songId, song in self.__songsOwned.items():
+            if not song.getPopular():
+                playTrace = [i + j for i, j in zip(playTrace, song.getPlayTrace())]
+                downloadTrace = [i + j for i, j in zip(downloadTrace, song.getDownTrace())]
+                collectTrace = [i + j for i, j in zip(collectTrace, song.getCollectTrace())]
+                userTrace = [i + j for i, j in zip(userTrace, song.getUsersTrace())]
+                self.__songsOwned.popitem()
+        unpopularSongsGroup = Song('unpopularSongsGroup', [0, 0, 0, 0, 0])
+        unpopularSongsGroup.setPopular(False)
+        unpopularSongsGroup.setTrace([playTrace, downloadTrace, collectTrace, userTrace])
+        self.__songsOwned['unpopularSongsGroup'] = unpopularSongsGroup
+
+    def plotSongsOwned(self):
+        savePath = os.path.join(utils.resultPath, self.__id)
+        if os.path.exists(savePath):
+            os.makedirs(savePath)
+        for songId, song in self.__songsOwned.items():
+            plt.figure(figsize=(6, 4))
+            song.plotTrace()
+            plt.savefig(os.path.join(savePath, songId + "--.png"))
+            plt.close()
