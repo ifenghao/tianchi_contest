@@ -34,24 +34,26 @@ def uniform(song):
     collect = song.getCollectTrace()
     users = song.getUsersTrace()
     playMax = np.max(play)
-    play = play / float(playMax)
+    if playMax == 0: playMax = 0.001
+    play = [i / float(playMax) for i in play]
     downloadMax = np.max(download)
-    download = download / float(downloadMax)
+    if downloadMax == 0: downloadMax = 0.001
+    download = [i / float(downloadMax) for i in download]
     collectMax = np.max(collect)
-    collect = collect / float(collectMax)
+    if collectMax == 0: collectMax = 0.001
+    collect = [i / float(collectMax) for i in collect]
     usersMax = np.max(users)
-    users = users / float(usersMax)
+    if usersMax == 0: usersMax = 0.001
+    users = [i / float(usersMax) for i in users]
     data = [play, download, collect, users]
     return data, playMax
 
 
-def split(data, percent):
+def split(data, trainLength):
     play = data[0]
     download = data[1]
     collect = data[2]
     users = data[3]
-    total = len(play)
-    trainLength = int(total * percent)
     train = [play[:trainLength], download[:trainLength], collect[:trainLength], users[:trainLength]]
     test = [play[trainLength:], download[trainLength:], collect[trainLength:], users[trainLength:]]
     return train, test
@@ -62,17 +64,21 @@ def normalizedVariation(yTrue, yPredict):
     return np.sqrt(np.mean(normSquare))
 
 
-dim = 5
+dim = 3
+trainLength = 100
 artistsDict = cPickle.load(open(utils.artistsPickleFile, 'r'))
+plt.figure(figsize=(6, 4))
 for artistId in artistsDict.keys():
     savePath = os.path.join(utils.resultPath, artistId)
     if not os.path.exists(savePath):
         os.makedirs(savePath)
     artistFile = os.path.join(utils.allResultPath, 'result0503', artistId + '.pkl')
     artist = cPickle.load(open(artistFile, 'r'))
+    yTestSum = [0 for __ in range(utils.days - trainLength)]
+    yPredictSum = [0 for __ in range(utils.days - trainLength)]
     for songId, song in artist.getSongsOwned().items():
-        data, factor = uniform(song)
-        train, test = split(data, 0.5)
+        data, factor = uniform(song)  # 归一化
+        train, test = split(data, trainLength)
         XTrain, yTrain = makeDataset(array=train, insertDim=dim)
         XTest, yTest = makeDataset(array=test, insertDim=dim)
         svr = svm.SVR()
@@ -87,16 +93,28 @@ for artistId in artistsDict.keys():
             XTrain.append(XSub)
             yTrain.pop(0)
             yTrain.append(ySub)
+        yTest = [i * factor for i in yTest]
+        yPredict = [i * factor for i in yPredict]
         rmse = np.sqrt(mean_squared_error(yTest, yPredict))
-        nvar = normalizedVariation(yTest, yPredict)
-        plt.figure(figsize=(6, 4))
         yptag = plt.plot(yPredict, 'bo', yPredict, 'b-')
         yttag = plt.plot(yTest, 'ro', yTest, 'r-')
         plt.legend([yptag[1], yttag[1]], ['predict', 'test'])
         plt.xlabel('test days')
         plt.ylabel('counts')
-        plt.title('song id:' + songId + '\n' + \
-                  'RMSE:' + str(rmse) + '-' + 'NVAR' + str(nvar))
-        plt.savefig(os.path.join(savePath, songId + ".png"))
+        plt.title('song id:' + songId + '\n' + 'RMSE:' + str(rmse))
+        plt.savefig(os.path.join(savePath, 'song' + songId + ".png"))
         plt.clf()
-        plt.close()
+        yTestSum = [i + j for i, j in zip(yTestSum, yTest)]
+        yPredictSum = [i + j for i, j in zip(yPredictSum, yPredict)]
+
+    rmseSum = np.sqrt(mean_squared_error(yTestSum, yPredictSum))
+    nvar = normalizedVariation(yTestSum, yPredictSum)
+    plt.figure(figsize=(6, 4))
+    yptag = plt.plot(yPredictSum, 'bo', yPredictSum, 'b-')
+    yttag = plt.plot(yTestSum, 'ro', yTestSum, 'r-')
+    plt.legend([yptag[1], yttag[1]], ['predict', 'test'])
+    plt.xlabel('test days')
+    plt.ylabel('counts')
+    plt.title('artist sum:' + artistId + '\n' + 'RMSE:' + str(rmseSum) + '-nvar:' + str(nvar))
+    plt.savefig(os.path.join(savePath, 'artist' + artistId + ".png"))
+    plt.clf()

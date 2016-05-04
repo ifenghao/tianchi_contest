@@ -12,12 +12,13 @@ class Song(object):
         self.__issueTime = infoList[2]
         self.__initPlay = infoList[3]
         self.__language = infoList[4]
-        self.__popular = True
+        self.__popular = False
         # 歌曲的时间轨迹
         self.__playTrace = [0 for __ in range(utils.days)]  # 播放轨迹
         self.__downloadTrace = [0 for __ in range(utils.days)]  # 下载轨迹
         self.__collectTrace = [0 for __ in range(utils.days)]  # 收藏轨迹
         self.__usersTrace = [0 for __ in range(utils.days)]  # 用户数量轨迹
+        self.__mean = [0, 0, 0, 0]  # 歌曲的p,d,c,u平均值
 
     def makeTrace(self, songWithUsersList):
         if songWithUsersList == None:
@@ -34,27 +35,31 @@ class Song(object):
             elif row[3] == '3':
                 self.__collectTrace[dateNum] += 1
         self.__usersTrace = map(len, usersTrace)
-        playSum = np.sum(self.__playTrace)
-        downloadSum = np.sum(self.__downloadTrace)
-        collectSum = np.sum(self.__collectTrace)
-        usersSum = np.sum(self.__usersTrace)
-        if (playSum <= 3 and downloadSum <= 3 and collectSum <= 3) or usersSum <= 3:
-            self.__popular = False
-        else:
-            entropy = utils.entropy(self.__usersTrace)
-            entropyMax = utils.entropy([1 for __ in range(utils.days)])
-            percent = entropy / entropyMax
-            usersTraceArray = np.array(self.__usersTrace)
-            actionMean = np.mean(usersTraceArray[np.nonzero(usersTraceArray)])
-            if actionMean <= 3 and percent < 0.3:
-                self.__popular = False
-        # if not self.__popular:
+        self.__mean[0] = np.mean(self.__playTrace)
+        self.__mean[1] = np.mean(self.__downloadTrace)
+        self.__mean[2] = np.mean(self.__collectTrace)
+        self.__mean[3] = np.mean(self.__usersTrace)
+        return
+
+    def makePopular(self, artistMean):
+        if np.sum(self.__mean[:3]) > 2 and self.__mean[3] > 2:
+            if np.sum(self.__mean[:3]) > np.sum(artistMean[:3]) and self.__mean[3] > artistMean[3]:
+                self.__popular = True
+            else:
+                actionArray = np.array(self.__playTrace) + np.array(self.__downloadTrace)\
+                              + np.array(self.__collectTrace)
+                usersArray = np.array(self.__usersTrace)
+                actionMean = np.mean(actionArray[np.nonzero(actionArray)])
+                usersMean = np.mean(usersArray[np.nonzero(usersArray)])
+                if actionMean > 4 and usersMean > 4:
+                    self.__popular = True
+        # if self.__popular:
         #     entropy = utils.entropy(self.__usersTrace)
         #     entropyMax = utils.entropy([1 for __ in range(utils.days)])
         #     percent = entropy / entropyMax
         #     usersTraceArray = np.array(self.__usersTrace)
         #     actionMean = np.mean(usersTraceArray[np.nonzero(usersTraceArray)])
-        #     savePath = os.path.join(utils.resultPath, 'unpopular songs')
+        #     savePath = os.path.join(utils.resultPath, 'popular songs')
         #     if os.path.exists(savePath):
         #         os.makedirs(savePath)
         #     plt.figure(figsize=(6, 4))
@@ -111,3 +116,6 @@ class Song(object):
 
     def getUsersTrace(self):
         return self.__usersTrace
+
+    def getMean(self):
+        return self.__mean
