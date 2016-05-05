@@ -8,55 +8,51 @@ import numpy as np
 import utils, os
 import cPickle
 
-# 生成输入空间
-def makeDataset(array, insertDim):
-    play = array[0]
-    download = array[1]
-    collect = array[2]
-    users = array[3]
-    if not len(play) == len(download) == len(collect):
-        raise Exception('length not equal')
+
+def makePlayCount(array, index):
+    array = np.array(array)
+    return array[0, index]
+
+
+def makeFeature(array, embedDim, offset):
+    array = np.array(array)
+    feature = []
+    for i in range(embedDim):
+        feature.extend(array[:, offset - embedDim + i])
+    return feature
+
+
+def makeDataset(array, embedDim):
+    array = np.array(array)
     X = []
     y = []
-    for i in range(insertDim, len(play)):
-        subX = []
-        for j in range(insertDim):
-            subX.extend([play[i - insertDim + j], download[i - insertDim + j],
-                         collect[i - insertDim + j], users[i - insertDim + j]])
-        X.append(subX)
-        y.append(play[i])
+    for i in range(embedDim, array.shape[1]):
+        X.append(makeFeature(array, embedDim, i))
+        y.append(makePlayCount(array, i))
     return X, y
 
 
-def uniform(song):
-    play = song.getPlayTrace()
-    download = song.getDownTrace()
-    collect = song.getCollectTrace()
-    users = song.getUsersTrace()
-    playMax = np.max(play)
-    if playMax == 0: playMax = 0.001
-    play = [i / float(playMax) for i in play]
-    downloadMax = np.max(download)
-    if downloadMax == 0: downloadMax = 0.001
-    download = [i / float(downloadMax) for i in download]
-    collectMax = np.max(collect)
-    if collectMax == 0: collectMax = 0.001
-    collect = [i / float(collectMax) for i in collect]
-    usersMax = np.max(users)
-    if usersMax == 0: usersMax = 0.001
-    users = [i / float(usersMax) for i in users]
-    data = [play, download, collect, users]
-    return data, playMax
+def uniform(array):
+    array = np.array(array, dtype=float)
+    factor = np.max(array, axis=1)
+    for i in range(array.shape[0]):
+        array[i, :] /= factor[i]
+    array[array == np.nan] = 0
+    array[array == np.inf] = 0
+    return array, factor[0]  # 播放量的比例因子
 
 
-def split(data, trainLength):
-    play = data[0]
-    download = data[1]
-    collect = data[2]
-    users = data[3]
-    train = [play[:trainLength], download[:trainLength], collect[:trainLength], users[:trainLength]]
-    test = [play[trainLength:], download[trainLength:], collect[trainLength:], users[trainLength:]]
+def split(array, trainLength):
+    train = array[:, :trainLength]
+    test = array[:, trainLength:]
     return train, test
+
+
+def makeDataArray(artist, song):
+    songTrace = song.getTrace()
+    songPercent = song.getPercentInSongs()
+    artistPercent = artist.getPercentInArtists()
+    return np.vstack((songTrace, songPercent, artistPercent))
 
 
 def normalizedVariation(yTrue, yPredict):
@@ -66,21 +62,22 @@ def normalizedVariation(yTrue, yPredict):
 
 dim = 3
 trainLength = 100
-artistsDict = cPickle.load(open(utils.artistsPickleFile, 'r'))
+artistObjectFile = os.path.join(utils.allResultPath, 'result0505', 'artistsObjectDict.pkl')
+artistsObjectDict = cPickle.load(open(artistObjectFile, 'r'))
+artistF = []
 plt.figure(figsize=(6, 4))
-for artistId in artistsDict.keys():
+for artistId, artist in artistsObjectDict.items():
     savePath = os.path.join(utils.resultPath, artistId)
     if not os.path.exists(savePath):
         os.makedirs(savePath)
-    artistFile = os.path.join(utils.allResultPath, 'result0503', artistId + '.pkl')
-    artist = cPickle.load(open(artistFile, 'r'))
     yTestSum = [0 for __ in range(utils.days - trainLength)]
     yPredictSum = [0 for __ in range(utils.days - trainLength)]
     for songId, song in artist.getSongsOwned().items():
-        data, factor = uniform(song)  # 归一化
-        train, test = split(data, trainLength)
-        XTrain, yTrain = makeDataset(array=train, insertDim=dim)
-        XTest, yTest = makeDataset(array=test, insertDim=dim)
+        array = makeDataArray(artist, song)
+        array, factor = uniform(array)  # 归一化
+        train, test = split(array, trainLength)
+        XTrain, yTrain = makeDataset(array=train, embedDim=dim)
+        XTest, yTest = makeDataset(array=test, embedDim=dim)
         svr = svm.SVR()
         para = {'C': [1, 10, 30]}
         clf = grid_search.GridSearchCV(svr, para)
@@ -106,7 +103,6 @@ for artistId in artistsDict.keys():
         plt.clf()
         yTestSum = [i + j for i, j in zip(yTestSum, yTest)]
         yPredictSum = [i + j for i, j in zip(yPredictSum, yPredict)]
-
     rmseSum = np.sqrt(mean_squared_error(yTestSum, yPredictSum))
     nvar = normalizedVariation(yTestSum, yPredictSum)
     plt.figure(figsize=(6, 4))
@@ -118,3 +114,8 @@ for artistId in artistsDict.keys():
     plt.title('artist sum:' + artistId + '\n' + 'RMSE:' + str(rmseSum) + '-nvar:' + str(nvar))
     plt.savefig(os.path.join(savePath, 'artist' + artistId + ".png"))
     plt.clf()
+    artistWeight = np.sqrt(np.sum(artist.getTotalTrace()[0, :]))
+    artistF.append(artistWeight * nvar)
+
+print artistF
+print np.sum(artistF)

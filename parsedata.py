@@ -6,6 +6,7 @@ from UserClass import User
 import os
 import utils
 import cPickle
+import numpy as np
 
 if not os.path.exists(utils.resultPath):
     os.makedirs(utils.resultPath)
@@ -25,17 +26,25 @@ if not os.path.exists(utils.resultPath):
 
 artistsDict = cPickle.load(open(utils.artistsPickleFile, 'r'))
 songsDict = cPickle.load(open(utils.songsPickleFile, 'r'))
+artistsObjectDict = {}
+artistsTotalTrace = np.array([[0 for __ in range(utils.days)] for __ in range(4)])
 for artistId, songsList in artistsDict.items():
     artist = Artist(artistId)
     artist.makeSongsOwned(songsList, songsDict)
     artist.determinePopularSongs()
     artist.combineUnpopularSongs()
-    savePath = os.path.join(utils.resultPath, 'artists')
-    if not os.path.exists(savePath):
-        os.makedirs(savePath)
-    artistFile = os.path.join(savePath, artistId + '.pkl')
-    with open(artistFile, 'w') as file:
-        cPickle.dump(artist, file)
+    artistsObjectDict[artistId] = artist
+    artistsTotalTrace += artist.getTotalTrace()
+
+for artistId, artist in artistsObjectDict.items():  # 生成每个歌手占所有歌手比例的轨迹
+    artist.makePercentInArtists(artistsTotalTrace)
+
+savePath = utils.resultPath
+if not os.path.exists(savePath):
+    os.makedirs(savePath)
+artistFile = os.path.join(savePath, 'artistsObjectDict.pkl')
+with open(artistFile, 'w') as file:
+    cPickle.dump(artistsObjectDict, file)
 
 # artistsDict = cPickle.load(open(utils.artistsPickleFile, 'r'))
 # for artistId in artistsDict.keys():

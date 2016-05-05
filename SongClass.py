@@ -14,11 +14,9 @@ class Song(object):
         self.__language = infoList[4]
         self.__popular = False
         # 歌曲的时间轨迹
-        self.__playTrace = [0 for __ in range(utils.days)]  # 播放轨迹
-        self.__downloadTrace = [0 for __ in range(utils.days)]  # 下载轨迹
-        self.__collectTrace = [0 for __ in range(utils.days)]  # 收藏轨迹
-        self.__usersTrace = [0 for __ in range(utils.days)]  # 用户数量轨迹
-        self.__mean = [0, 0, 0, 0]  # 歌曲的p,d,c,u平均值
+        self.__trace = np.array([[0 for __ in range(utils.days)] for __ in range(4)])  # 播放,下载,收藏,用户数量轨迹
+        self.__percentInSongs = np.array([[0 for __ in range(utils.days)] for __ in range(4)], dtype=np.float)
+        self.__mean = np.array([0, 0, 0, 0], dtype=np.float)  # 歌曲的p,d,c,u平均值
 
     def makeTrace(self, songWithUsersList):
         if songWithUsersList == None:
@@ -29,50 +27,54 @@ class Song(object):
             dateNum = utils.date2num(row[4])
             usersTrace[dateNum].add(row[0])
             if row[3] == '1':
-                self.__playTrace[dateNum] += 1
+                self.__trace[0][dateNum] += 1
             elif row[3] == '2':
-                self.__downloadTrace[dateNum] += 1
+                self.__trace[1][dateNum] += 1
             elif row[3] == '3':
-                self.__collectTrace[dateNum] += 1
-        self.__usersTrace = map(len, usersTrace)
-        self.__mean[0] = np.mean(self.__playTrace)
-        self.__mean[1] = np.mean(self.__downloadTrace)
-        self.__mean[2] = np.mean(self.__collectTrace)
-        self.__mean[3] = np.mean(self.__usersTrace)
+                self.__trace[2][dateNum] += 1
+        self.__trace[3] = map(len, usersTrace)
+        self.__mean = np.mean(self.__trace, axis=1)
         return
 
     def makePopular(self, artistMean):
-        if np.sum(self.__mean[:3]) > 2 and self.__mean[3] > 2:
-            if np.sum(self.__mean[:3]) > np.sum(artistMean[:3]) and self.__mean[3] > artistMean[3]:
+        threshold = 2
+        actionMean = np.sum(self.__mean[:3])
+        usersMean = self.__mean[3]
+        play = self.__trace[0]
+        noPlayDays = len(play[play == 0])
+        if actionMean > threshold and usersMean > threshold and noPlayDays < utils.days / 5:
+            if actionMean > np.sum(artistMean[:3]) and usersMean > artistMean[3]:
                 self.__popular = True
             else:
-                actionArray = np.array(self.__playTrace) + np.array(self.__downloadTrace)\
-                              + np.array(self.__collectTrace)
-                usersArray = np.array(self.__usersTrace)
-                actionMean = np.mean(actionArray[np.nonzero(actionArray)])
-                usersMean = np.mean(usersArray[np.nonzero(usersArray)])
-                if actionMean > 4 and usersMean > 4:
+                traceArray = np.array(self.__trace)
+                actionArray = np.sum(traceArray[:3, :], axis=0)
+                usersArray = traceArray[3, :]
+                actionNonzeroMean = np.mean(actionArray[np.nonzero(actionArray)])
+                usersNonzeroMean = np.mean(usersArray[np.nonzero(usersArray)])
+                if actionNonzeroMean > threshold * 4 and usersNonzeroMean > threshold * 4:
                     self.__popular = True
-        # if self.__popular:
-        #     entropy = utils.entropy(self.__usersTrace)
-        #     entropyMax = utils.entropy([1 for __ in range(utils.days)])
-        #     percent = entropy / entropyMax
-        #     usersTraceArray = np.array(self.__usersTrace)
-        #     actionMean = np.mean(usersTraceArray[np.nonzero(usersTraceArray)])
-        #     savePath = os.path.join(utils.resultPath, 'popular songs')
-        #     if os.path.exists(savePath):
-        #         os.makedirs(savePath)
-        #     plt.figure(figsize=(6, 4))
-        #     self.plotTrace([entropy, percent, actionMean])
-        #     plt.savefig(os.path.join(savePath, self.__id + ".png"))
-        #     plt.close()
+        if self.__popular:
+            savePath = os.path.join(utils.resultPath, 'popular songs')
+            if not os.path.exists(savePath):
+                os.makedirs(savePath)
+            plt.figure(figsize=(8, 8))
+            self.plotTrace([actionMean, usersMean, noPlayDays])
+            plt.savefig(os.path.join(savePath, self.__id + ".png"))
+            plt.close()
         return
 
+    def makePercentInSongs(self, allSongs):
+        thisSong = np.array(self.__trace, dtype=np.float)
+        allSongs = np.array(allSongs, dtype=np.float)
+        self.__percentInSongs = thisSong / allSongs
+        self.__percentInSongs[self.__percentInSongs == np.nan] = 0
+        self.__percentInSongs[self.__percentInSongs == np.inf] = 0
+
     def plotTrace(self, title):
-        p = plt.plot(self.__playTrace, 'bo', self.__playTrace, 'b-')
-        d = plt.plot(self.__downloadTrace, 'ro', self.__downloadTrace, 'r-')
-        c = plt.plot(self.__collectTrace, 'go', self.__collectTrace, 'g-')
-        u = plt.plot(self.__usersTrace, 'yo', self.__usersTrace, 'y-')
+        p = plt.plot(self.__trace[0], 'bo', self.__trace[0], 'b-')
+        d = plt.plot(self.__trace[1], 'ro', self.__trace[1], 'r-')
+        c = plt.plot(self.__trace[2], 'go', self.__trace[2], 'g-')
+        u = plt.plot(self.__trace[3], 'yo', self.__trace[3], 'y-')
         plt.legend([p[1], d[1], c[1], u[1]], ['play', 'download', 'collect', 'users'])
         plt.xlabel('days')
         plt.ylabel('counts')
@@ -82,10 +84,7 @@ class Song(object):
                   str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]))
 
     def setTrace(self, trace):
-        self.__playTrace = trace[0]
-        self.__downloadTrace = trace[1]
-        self.__collectTrace = trace[2]
-        self.__usersTrace = trace[3]
+        self.__trace = trace
 
     def setPopular(self, bool):
         self.__popular = bool
@@ -105,17 +104,11 @@ class Song(object):
     def getPopular(self):
         return self.__popular
 
-    def getPlayTrace(self):
-        return self.__playTrace
-
-    def getDownTrace(self):
-        return self.__downloadTrace
-
-    def getCollectTrace(self):
-        return self.__collectTrace
-
-    def getUsersTrace(self):
-        return self.__usersTrace
+    def getTrace(self):
+        return self.__trace
 
     def getMean(self):
         return self.__mean
+
+    def getPercentInSongs(self):
+        return self.__percentInSongs

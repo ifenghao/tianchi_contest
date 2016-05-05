@@ -11,7 +11,7 @@ class User(object):
         self.__id = userId
         self.__isActive = True
         self.__songsTried = {}  # 用户尝试过的所有歌曲 key=歌曲ID:value=用户行为(聚类依据)
-        self.__actonTrace = [0 for __ in range(utils.days)]  # 用户活动的时间轨迹 每天用户行为求和(判断活跃度依据)
+        self.__actonTrace = np.array([0 for __ in range(utils.days)])  # 用户活动的时间轨迹 每天用户行为求和(判断活跃度依据)
 
     def makeSongsTried(self, userWithSongsList):
         songs = {}
