@@ -42,7 +42,7 @@ class Song(object):
         usersMean = self.__mean[3]
         play = self.__trace[0]
         noPlayDays = len(play[play == 0])
-        if actionMean > threshold and usersMean > threshold and noPlayDays < utils.days / 5:
+        if actionMean > threshold and usersMean > threshold and noPlayDays < utils.days / 3:
             if actionMean > np.sum(artistMean[:3]) and usersMean > artistMean[3]:
                 self.__popular = True
             else:
@@ -51,7 +51,7 @@ class Song(object):
                 usersArray = traceArray[3, :]
                 actionNonzeroMean = np.mean(actionArray[np.nonzero(actionArray)])
                 usersNonzeroMean = np.mean(usersArray[np.nonzero(usersArray)])
-                if actionNonzeroMean > threshold * 4 and usersNonzeroMean > threshold * 4:
+                if actionNonzeroMean > threshold * 2 and usersNonzeroMean > threshold * 2:
                     self.__popular = True
         if self.__popular:
             savePath = os.path.join(utils.resultPath, 'popular songs')

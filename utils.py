@@ -100,6 +100,11 @@ def entropy(countList):
     return -np.sum(p * np.log2(p))
 
 
+def normalizedVariation(yTrue, yPredict):
+    normSquare = [((p - t) / t) ** 2 for t, p in zip(yTrue, yPredict)]
+    return np.sqrt(np.mean(normSquare))
+
+
 def plotArtistSongsTrace(artistId):
     resultFilePath = os.path.join(resultPath, 'artists', artistId)
     if not os.path.exists(resultFilePath):
