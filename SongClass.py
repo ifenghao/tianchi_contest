@@ -13,10 +13,12 @@ class Song(object):
         self.__initPlay = infoList[3]
         self.__language = infoList[4]
         self.__popular = False
-        # 歌曲的时间轨迹
-        self.__trace = np.array([[0 for __ in range(utils.days)] for __ in range(4)])  # 播放,下载,收藏,用户数量轨迹
-        self.__percentInSongs = np.array([[0 for __ in range(utils.days)] for __ in range(4)], dtype=np.float)
-        self.__mean = np.array([0, 0, 0, 0], dtype=np.float)  # 歌曲的p,d,c,u平均值
+        self.__emptyDays = 0
+        # 歌曲的时间轨迹，仅保留发行后的时间轨迹，发行前的空余将剔除
+        self.__trace = np.zeros((4, utils.days))  # 播放,下载,收藏,用户数量轨迹
+        self.__percentInSongs = np.zeros((4, utils.days))
+        self.__cumulateEA = np.zeros(utils.days)
+        self.__mean = np.zeros(4)  # 歌曲的p,d,c,u平均值
 
     def makeTrace(self, songWithUsersList):
         if songWithUsersList == None:
@@ -33,17 +35,24 @@ class Song(object):
             elif row[3] == '3':
                 self.__trace[2][dateNum] += 1
         self.__trace[3] = map(len, usersTrace)
+        issueTimeNum = utils.date2num(self.__issueTime)
+        if issueTimeNum > 0:
+            users = np.array(self.__trace[3])
+            self.__emptyDays = np.where(users != 0)[0][0]  # 第一天有用户活动
+            self.__trace = self.__trace[:, self.__emptyDays:]
+
+    def makeMean(self):
         self.__mean = np.mean(self.__trace, axis=1)
-        return
 
     def makePopular(self, artistMean):
         threshold = 2
         actionMean = np.sum(self.__mean[:3])
         usersMean = self.__mean[3]
         play = self.__trace[0]
+        totalDays = len(play)
         noPlayDays = len(play[play == 0])
-        if actionMean > threshold and usersMean > threshold and noPlayDays < utils.days / 3:
-            if actionMean > np.sum(artistMean[:3]) and usersMean > artistMean[3]:
+        if actionMean >= threshold and usersMean >= threshold and noPlayDays <= totalDays / 4:
+            if actionMean >= np.sum(artistMean[:3]) and usersMean >= artistMean[3]:
                 self.__popular = True
             else:
                 traceArray = np.array(self.__trace)
@@ -51,24 +60,39 @@ class Song(object):
                 usersArray = traceArray[3, :]
                 actionNonzeroMean = np.mean(actionArray[np.nonzero(actionArray)])
                 usersNonzeroMean = np.mean(usersArray[np.nonzero(usersArray)])
-                if actionNonzeroMean > threshold * 2 and usersNonzeroMean > threshold * 2:
+                if actionNonzeroMean >= threshold * 2 and usersNonzeroMean >= threshold:
                     self.__popular = True
-        if self.__popular:
-            savePath = os.path.join(utils.resultPath, 'popular songs')
-            if not os.path.exists(savePath):
-                os.makedirs(savePath)
-            plt.figure(figsize=(8, 8))
-            self.plotTrace([actionMean, usersMean, noPlayDays])
-            plt.savefig(os.path.join(savePath, self.__id + ".png"))
-            plt.close()
-        return
+                    # if self.__popular:
+                    #     savePath = os.path.join(utils.resultPath, 'popular songs')
+                    #     if not os.path.exists(savePath):
+                    #         os.makedirs(savePath)
+                    #     plt.figure(figsize=(8, 8))
+                    #     self.plotTrace([actionMean, usersMean, noPlayDays])
+                    #     plt.savefig(os.path.join(savePath, self.__id + ".png"))
+                    #     plt.close()
 
     def makePercentInSongs(self, allSongs):
         thisSong = np.array(self.__trace, dtype=np.float)
         allSongs = np.array(allSongs, dtype=np.float)
-        self.__percentInSongs = thisSong / allSongs
-        self.__percentInSongs[self.__percentInSongs == np.nan] = 0
-        self.__percentInSongs[self.__percentInSongs == np.inf] = 0
+        self.__percentInSongs = thisSong / allSongs[:, self.__emptyDays:]
+        self.__percentInSongs[np.isnan(self.__percentInSongs)] = 0
+        self.__percentInSongs[np.isinf(self.__percentInSongs)] = 0
+
+    def makeCumulateEA(self):
+        cumulateEA = []
+        play = np.array(self.__trace[0])
+        initPlay = float(self.__initPlay)
+        issueTimeNum = utils.date2num(self.__issueTime)
+        cumulateList = []
+        w = []
+        if issueTimeNum < 0:  # 发行时间在之前
+            cumulateList = [initPlay / np.abs(issueTimeNum)] + cumulateList  # 已发行平均播放作第一个元素
+            w.append(1)
+        for i in range(len(play)):
+            cumulateList = [play[i]] + cumulateList
+            w.append(2.0 / (1 + len(cumulateList)))
+            cumulateEA.append(np.average(cumulateList, weights=w))
+        self.__cumulateEA = np.array(cumulateEA)
 
     def plotTrace(self, title):
         p = plt.plot(self.__trace[0], 'bo', self.__trace[0], 'b-')
@@ -85,6 +109,9 @@ class Song(object):
 
     def setTrace(self, trace):
         self.__trace = trace
+
+    def setCumulateEA(self, cumulateEA):
+        self.__cumulateEA = cumulateEA
 
     def setPopular(self, bool):
         self.__popular = bool
@@ -104,6 +131,9 @@ class Song(object):
     def getPopular(self):
         return self.__popular
 
+    def getEmptyDays(self):
+        return self.__emptyDays
+
     def getTrace(self):
         return self.__trace
 
@@ -112,3 +142,6 @@ class Song(object):
 
     def getPercentInSongs(self):
         return self.__percentInSongs
+
+    def getCumulateEA(self):
+        return self.__cumulateEA

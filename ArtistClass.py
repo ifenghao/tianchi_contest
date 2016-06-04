@@ -13,9 +13,10 @@ class Artist(object):
         self.__gender = 0
         self.__songsOwned = {}  # 歌曲字典 key=歌曲ID:value=歌曲类
         # 所有歌曲总和的时间轨迹
-        self.__totalTrace = np.array([[0 for __ in range(utils.days)] for __ in range(4)])  # 播放,下载,收藏,用户数量轨迹
-        self.__percentInArtists = np.array([[0 for __ in range(utils.days)] for __ in range(4)], dtype=np.float)
-        self.__totalMean = np.array([0, 0, 0, 0], dtype=np.float)  # p,d,c,u平均值
+        self.__totalTrace = np.zeros((4, utils.days))  # 播放,下载,收藏,用户数量轨迹
+        self.__percentInArtists = np.zeros((4, utils.days))
+        self.__totalCumulateEA = np.zeros(utils.days)
+        self.__totalMean = np.zeros(4)  # p,d,c,u平均值
 
     def makeSongsOwned(self, songsList, songsDict):
         if songsList == None:
@@ -28,53 +29,67 @@ class Artist(object):
             newSong = Song(songId, row)
             songWithUsersList = songsDict.get(songId, None)
             newSong.makeTrace(songWithUsersList)
+            newSong.makeMean()
+            newSong.makeCumulateEA()
             songs[songId] = newSong
-            totalTrace += newSong.getTrace()
-        for songId, song in songs.items():  # 生成每首歌占本歌手总歌曲比例的轨迹
-            song.makePercentInSongs(totalTrace)
+            songTrace = newSong.getTrace()
+            emptyDays = utils.days - songTrace.shape[1]
+            totalTrace += np.hstack((np.zeros((4, emptyDays)), songTrace))
         self.__gender = songsList[0][5]
         self.__songsOwned = songs
         self.__totalTrace = totalTrace
-        self.__totalMean = np.mean(self.__totalTrace, axis=1)
-        return
-
-    def determinePopularSongs(self):
+        self.__totalMean = np.mean(totalTrace, axis=1)
         count = 0
-        for songId, song in self.__songsOwned.items():
+        for songId, song in self.__songsOwned.items():  # 生成每首歌占本歌手总歌曲比例的轨迹
+            song.makePercentInSongs(self.__totalTrace)
             song.makePopular(self.__totalMean)
             if song.getPopular():
                 count += 1
         print 'popular songs ' + str(count) + '/' + str(len(self.__songsOwned))
 
     def combineUnpopularSongs(self):
-        unpopularSongsTrace = np.array([[0 for __ in range(utils.days)] for __ in range(4)])
+        unpopularSongsTrace = np.zeros((4, utils.days))
+        unpopularSongsCumulateEA = np.zeros(utils.days)
         totalSongs = len(self.__songsOwned)
         combineSongs = 0
         for songId, song in self.__songsOwned.items():
             if not song.getPopular():
-                unpopularSongsTrace += song.getTrace()
+                songTrace = song.getTrace()
+                songCumulateEA = song.getCumulateEA()
+                emptyDays = utils.days - songTrace.shape[1]
+                unpopularSongsTrace += np.hstack((np.zeros((4, emptyDays)), songTrace))
+                unpopularSongsCumulateEA += np.hstack((np.zeros(emptyDays), songCumulateEA))
                 self.__songsOwned.pop(songId)
                 combineSongs += 1
         print 'combine:' + str(combineSongs) + '/' + str(totalSongs)
         unpopularSongs = Song('unpopularSongsGroup', [0, 0, 0, 0, 0])
-        unpopularSongs.setPopular(False)
         unpopularSongs.setTrace(unpopularSongsTrace)
+        unpopularSongs.setCumulateEA(unpopularSongsCumulateEA)
+        unpopularSongs.makeMean()
+        unpopularSongs.makePercentInSongs(self.__totalTrace)
+        unpopularSongs.setPopular(False)
         self.__songsOwned['unpopularSongsGroup'] = unpopularSongs
 
     def makePercentInArtists(self, allArtists):
         thisArtist = np.array(self.__totalTrace, dtype=np.float)
         allArtists = np.array(allArtists, dtype=np.float)
         self.__percentInArtists = thisArtist / allArtists
-        self.__percentInArtists[self.__percentInArtists == np.nan] = 0
-        self.__percentInArtists[self.__percentInArtists == np.inf] = 0
+        self.__percentInArtists[np.isnan(self.__percentInArtists)] = 0
+        self.__percentInArtists[np.isinf(self.__percentInArtists)] = 0
+
+    def makeTotalCumulateEA(self):
+        for songId, song in self.__songsOwned.items():
+            songCumulateEA = song.getCumulateEA()
+            emptyDays = utils.days - songCumulateEA.shape[0]
+            self.__totalCumulateEA += np.hstack(((np.zeros(emptyDays), songCumulateEA)))
 
     def plotSongsOwned(self):
         savePath = os.path.join(utils.resultPath, self.__id)
-        if os.path.exists(savePath):
+        if not os.path.exists(savePath):
             os.makedirs(savePath)
         for songId, song in self.__songsOwned.items():
             plt.figure(figsize=(6, 4))
-            song.plotTrace()
+            song.plotTrace([0,0,0])
             plt.savefig(os.path.join(savePath, songId + "--.png"))
             plt.close()
 
@@ -83,6 +98,9 @@ class Artist(object):
 
     def getTotalTrace(self):
         return self.__totalTrace
+
+    def getTotalCumulateEA(self):
+        return self.__totalCumulateEA
 
     def getPercentInArtists(self):
         return self.__percentInArtists

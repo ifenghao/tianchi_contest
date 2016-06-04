@@ -12,15 +12,18 @@ if not os.path.exists(utils.resultPath):
     os.makedirs(utils.resultPath)
 
 # usersDict = utils.trimFileInCol(0, utils.usersFile)
-# usersObjectDict = utils.analyseUsers(usersDict)  # 分析用户活跃程度
+# usersObjectDict = utils.analyseUsers(usersDict)  # 分析用户活跃程度，包含所有用户
 # with open(utils.usersPickleFile, 'w') as file:
 #     cPickle.dump(usersObjectDict, file)
-#
+
+# usersObjectDict = cPickle.load(open(utils.usersPickleFile, 'r'))
+# utils.plotInactiveUsers(usersObjectDict)
+
 # artistsDict = utils.trimFileInCol(1, utils.songsFile)
 # with open(utils.artistsPickleFile, 'w') as file:
 #     cPickle.dump(artistsDict, file)
 #
-# songsDict = utils.trimFileWithActiveUsers(1, utils.usersFile, usersObjectDict)  # 全部是活跃用户的记录
+# songsDict = utils.trimFileWithActiveUsers(1, utils.usersFile, usersObjectDict)  # 字典中全部是活跃用户的记录
 # with open(utils.songsPickleFile, 'w') as file:
 #     cPickle.dump(songsDict, file)
 
@@ -31,8 +34,8 @@ artistsTotalTrace = np.array([[0 for __ in range(utils.days)] for __ in range(4)
 for artistId, songsList in artistsDict.items():
     artist = Artist(artistId)
     artist.makeSongsOwned(songsList, songsDict)
-    artist.determinePopularSongs()
     artist.combineUnpopularSongs()
+    artist.makeTotalCumulateEA()
     artistsObjectDict[artistId] = artist
     artistsTotalTrace += artist.getTotalTrace()
 
@@ -46,8 +49,7 @@ artistFile = os.path.join(savePath, 'artistsObjectDict.pkl')
 with open(artistFile, 'w') as file:
     cPickle.dump(artistsObjectDict, file)
 
-# artistsDict = cPickle.load(open(utils.artistsPickleFile, 'r'))
-# for artistId in artistsDict.keys():
-#     artistFile = os.path.join(utils.allResultPath, 'result0502', artistId + '.pkl')
-#     artist = cPickle.load(open(artistFile, 'r'))
+# artistFile = os.path.join(utils.resultPath, 'artistsObjectDict.pkl')
+# artistsObjectDict = cPickle.load(open(artistFile, 'r'))
+# for artistId,artist in artistsObjectDict.items():
 #     artist.plotSongsOwned()

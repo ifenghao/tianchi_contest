@@ -63,8 +63,8 @@ song=artist.getSongsOwned()['720313f19ec784dd7bbae343190ae71a']
 
 trace=song.getTrace()
 result=movingAverage(trace,3)
-result1,mean,var= uniform(result)
-# print result1
+result,mean,var= uniform(result)
+# print result
 # mean=np.mean(trace,axis=1)
 # max=np.max(trace,axis=1)
 # var=np.var(trace,axis=1)
@@ -80,8 +80,8 @@ result1,mean,var= uniform(result)
 #     plt.plot(x1,'b-',x,'y-')
 #     plt.show()
 #     print(mean,var,p)
-plt.plot(result1[0],'b-')
-plt.plot(result1[1],'r-')
-plt.plot(result1[2],'g-')
-plt.plot(result1[3],'y-')
+plt.plot(result[0],'b-')
+plt.plot(result[1],'r-')
+plt.plot(result[2],'g-')
+plt.plot(result[3],'y-')
 plt.show()

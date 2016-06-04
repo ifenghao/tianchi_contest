@@ -1,8 +1,10 @@
 __author__ = 'zfh'
 # coding:utf-8
 
+import os, utils
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def makeTrainset(array, embedDim, interval, distance):  # 嵌入维度 间隔 预测距离
@@ -16,20 +18,17 @@ def makeTrainset(array, embedDim, interval, distance):  # 嵌入维度 间隔 �
         for j in range(i, i + subXSpan, interval + 1):
             subX.extend(array[:, j])
         X.append(subX)
-        y.append(array[0, i + subXSpan + distance - 1])
+        y.append(array[0, i + subXSpan:i + subXSpan + distance])
     return X, y
 
 
-def makeXPredict(array, embedDim, interval, distance):
+def makeXPredict(array, embedDim, interval):
     array = np.array(array)
     subXSpan = (embedDim - 1) * (interval + 1) + 1
-    predictStart = array.shape[1] - (subXSpan + distance) + 1
+    predictStart = array.shape[1] - subXSpan
     XPredict = []
-    for i in range(predictStart, predictStart + distance):
-        subX = []
-        for j in range(i, i + subXSpan, interval + 1):
-            subX.extend(array[:, j])
-        XPredict.append(subX)
+    for i in range(predictStart, predictStart + subXSpan, interval + 1):
+        XPredict.extend(array[:, i])
     return XPredict
 
 
@@ -80,25 +79,57 @@ def uniform(array):
     return result, mean[0], std[0]
 
 
-def split(array, trainLength):
-    train = array[:, :trainLength]
-    test = array[:, trainLength:]
+def split(array, distance):
+    train = array[:, :-distance]
+    test = array[:, -distance:]
     return train, test
+
+
+def XTrainLength(traceLength, embedDim, interval, distance):
+    subXSpan = (embedDim - 1) * (interval + 1) + 1
+    return traceLength - (subXSpan + distance) + 1
 
 
 def makeDataArray(artist, song):
     songTrace = song.getTrace()
+    songEA = song.getCumulateEA()
     songPercent = song.getPercentInSongs()
-    artistPercent = artist.getPercentInArtists()
-    return np.vstack((songTrace, songPercent, artistPercent))
+    artistEA = artist.getTotalCumulateEA()[song.getEmptyDays():]
+    artistPercent = artist.getPercentInArtists()[:, song.getEmptyDays():]
+    return np.vstack((songTrace, songEA, songPercent, artistEA, artistPercent))
 
 
-def process(artist, song, trainLen, embedDim, interval, distance):
+def process(artist, song, embedDim, interval, distance):
     array = makeDataArray(artist, song)
     array = movingAverage(array, 3)
     array, mean, var = uniform(array)  # 归一化
-    train, test = split(array, trainLen)
+    # plotArray(array, song.getId())
+    train, test = split(array, distance)
     XTrain, yTrain = makeTrainset(train, embedDim, interval, distance)
-    XPredict = makeXPredict(train, embedDim, interval, distance)
+    XPredict = makeXPredict(train, embedDim, interval)
     yTest = test[0, :]
     return XTrain, yTrain, XPredict, yTest, mean, var
+
+
+def fprocess(artist, song, embedDim, interval, distance):
+    array = makeDataArray(artist, song)
+    array = movingAverage(array, 3)
+    array, mean, var = uniform(array)  # 归一化
+    # plotArray(array, song.getId())
+    XTrain, yTrain = makeTrainset(array, embedDim, interval, distance)
+    XPredict = makeXPredict(array, embedDim, interval)
+    return XTrain, yTrain, XPredict, mean, var
+
+
+def plotArray(array, songId):
+    savePath = os.path.join(utils.resultPath, 'song array')
+    if not os.path.exists(savePath):
+        os.makedirs(savePath)
+    plt.figure(figsize=(8, 8))
+    for i in range(array.shape[0]):
+        plt.plot(array[i], label=str(i))
+    plt.legend()
+    plt.xlabel('days')
+    plt.ylabel('counts')
+    plt.savefig(os.path.join(savePath, songId + ".png"))
+    plt.close()

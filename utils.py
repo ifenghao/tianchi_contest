@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from UserClass import User
 
 startTime = int(time.mktime(time.strptime('20150301', '%Y%m%d')))
+predictTime = int(time.mktime(time.strptime('20150901', '%Y%m%d')))
 secondsPerDay = 86400
 days = 183
 currentPath = os.getcwd()
@@ -16,7 +17,7 @@ songsFileName = 'mars_tianchi_songs.csv'
 songsFile = os.path.join('/home/zhufenghao', 'dataset', songsFileName)
 
 resultPath = os.path.join(currentPath, 'result')
-allResultPath = os.path.join('/home/zhufenghao', 'allresults')
+allResultPath = os.path.join('/home/zfh', 'allresults')
 
 usersPickleFileName = 'usersObjectDict.pkl'
 usersPickleFile = os.path.join('/home/zhufenghao', 'dataset', usersPickleFileName)
@@ -24,8 +25,8 @@ usersPickleFile = os.path.join('/home/zhufenghao', 'dataset', usersPickleFileNam
 songsPickleFileName = 'songsDict.pkl'
 songsPickleFile = os.path.join('/home/zhufenghao', 'dataset', songsPickleFileName)
 
-artistsPickleFileName='artistsDict.pkl'
-artistsPickleFile=os.path.join('/home/zhufenghao','dataset',artistsPickleFileName)
+artistsPickleFileName = 'artistsDict.pkl'
+artistsPickleFile = os.path.join('/home/zhufenghao', 'dataset', artistsPickleFileName)
 
 
 def searchKeyInFile(key, fileName):
@@ -89,13 +90,28 @@ def analyseUsers(usersDict):
     return dict
 
 
+def plotInactiveUsers(usersObjectDict):
+    trace = np.zeros(days)
+    for userId, userObject in usersObjectDict.items():
+        if not userObject.isAcitve():
+            trace += userObject.getActionTrace()
+    plt.figure(figsize=(6, 4))
+    plt.plot(trace, 'b-', trace, 'bo')
+    plt.savefig(os.path.join(os.getcwd(), 'inactive users.png'))
+    plt.close()
+
+
 def date2num(date):
     return (int(time.mktime(time.strptime(date, '%Y%m%d'))) - startTime) // secondsPerDay
 
 
+def num2date(num):
+    return time.strftime('%Y%m%d', time.localtime(num * secondsPerDay + predictTime))
+
+
 def entropy(countList):
     countList = np.array(map(float, countList))  # 转换为浮点型数组
-    countList[countList == 0.] = 0.001  # 所有0元素用0.001代替，否则计算熵出错
+    countList[countList == 0.] = 1e-10  # 所有0元素用1e-10代替，否则计算熵出错
     p = countList / float(np.sum(countList))
     return -np.sum(p * np.log2(p))
 
@@ -103,72 +119,3 @@ def entropy(countList):
 def normalizedVariation(yTrue, yPredict):
     normSquare = [((p - t) / t) ** 2 for t, p in zip(yTrue, yPredict)]
     return np.sqrt(np.mean(normSquare))
-
-
-def plotArtistSongsTrace(artistId):
-    resultFilePath = os.path.join(resultPath, 'artists', artistId)
-    if not os.path.exists(resultFilePath):
-        print resultFilePath + ' not exist'
-        return
-    resultFile = os.path.join(resultFilePath, 'statistics.txt')
-    with open(resultFile, 'r') as file:
-        while True:
-            songId = file.readline().strip('\n')
-            if not songId:
-                break
-            issueTime = file.readline().strip('\n')
-            initPlay = file.readline().strip('\n')
-            language = file.readline().strip('\n')
-            play = map(int, file.readline().strip('\n').split(','))
-            download = map(int, file.readline().strip('\n').split(','))
-            collect = map(int, file.readline().strip('\n').split(','))
-            users = map(int, file.readline().strip('\n').split(','))
-            p = plt.plot(play, 'bo', play, 'b-')
-            d = plt.plot(download, 'ro', download, 'r-')
-            c = plt.plot(collect, 'go', collect, 'g-')
-            u = plt.plot(users, 'yo', users, 'y-')
-            plt.legend([p[1], d[1], c[1], u[1]], ['play', 'download', 'collect', 'users'])
-            plt.xlabel('days')
-            plt.ylabel('counts')
-            plt.title('id:' + songId + '\n' + issueTime + '-' + initPlay + '-' + language)
-            plt.savefig(os.path.join(resultFilePath, songId + ".png"))
-            plt.clf()
-
-
-def plotUserSongsRecord(userId):
-    resultFilePath = os.path.join(resultPath, 'users')
-    if not os.path.exists(resultFilePath):
-        print resultFilePath + ' not exist'
-        return
-    resultFile = os.path.join(resultFilePath, userId + '.txt')
-    with open(resultFile, 'r') as file:
-        play = []
-        download = []
-        collect = []
-        songsTriedNumber = 0
-        playSum = 0
-        downloadSum = 0
-        collectSum = 0
-        while True:
-            songId = file.readline().strip('\n')
-            if not songId:
-                break
-            if songId.find('sum:') != -1:
-                songsTriedNumber = map(int, file.readline().strip('\n').split(','))
-                playSum = map(int, file.readline().strip('\n').split(','))
-                downloadSum = map(int, file.readline().strip('\n').split(','))
-                collectSum = map(int, file.readline().strip('\n').split(','))
-            else:
-                play.append(map(int, file.readline().strip('\n').split(',')))
-                download.append(map(int, file.readline().strip('\n').split(',')))
-                collect.append(map(int, file.readline().strip('\n').split(',')))
-        p = plt.plot(play, 'bo', play, 'b-')
-        d = plt.plot(download, 'ro', download, 'r-')
-        c = plt.plot(collect, 'go', collect, 'g-')
-        plt.legend([p[1], d[1], c[1]], ['play', 'download', 'collect'])
-        plt.xlabel('songs')
-        plt.ylabel('counts')
-        plt.title('songs:' + str(songsTriedNumber) + '\n' + \
-                  str(playSum) + '-' + str(downloadSum) + '-' + str(collectSum))
-        plt.savefig(os.path.join(resultFilePath, userId + ".png"))
-        plt.clf()

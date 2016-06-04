@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 class User(object):
     def __init__(self, userId):
         self.__id = userId
-        self.__isActive = True
-        self.__songsTried = {}  # 用户尝试过的所有歌曲 key=歌曲ID:value=用户行为(聚类依据)
-        self.__actonTrace = np.array([0 for __ in range(utils.days)])  # 用户活动的时间轨迹 每天用户行为求和(判断活跃度依据)
+        self.__active = True
+        self.__songsTried = {}  # 用户尝试过的所有歌曲 key=歌曲ID:value=用户行为
+        self.__actonTrace = np.zeros(utils.days)  # 用户活动的时间轨迹 每天用户行为求和(判断活跃度依据)
 
     def makeSongsTried(self, userWithSongsList):
         songs = {}
@@ -31,32 +31,26 @@ class User(object):
             dateNum = utils.date2num(row[4])
             self.__actonTrace[dateNum] += 1
         playSum, downloadSum, collectSum = self.sumAction()
-        songsSum = len(self.__songsTried)
-        if playSum <= 3 and downloadSum <= 3 and collectSum <= 3 and songsSum <= 3:
-            self.__isActive = False  # 过于不活跃的用户
-        else:
-            entropy = utils.entropy(self.__actonTrace)
-            entropyMax = utils.entropy([1 for __ in range(utils.days)])
-            percent = entropy / entropyMax
-            actionTrace = np.array(self.__actonTrace)
-            actionMean = np.mean(actionTrace[np.nonzero(actionTrace)])
-            if actionMean <= 3 and percent < 0.2:
-                self.__isActive = False
-        # if not self.__isActive:
-        #     entropy = utils.entropy(self.__actonTrace)
-        #     entropyMax = utils.entropy([1 for __ in range(utils.days)])
-        #     percent = entropy / entropyMax
-        #     actionTrace = np.array(self.__actonTrace)
-        #     actionMean = np.mean(actionTrace[np.nonzero(actionTrace)])
+        if playSum <= 1 and downloadSum == 0 and collectSum == 0:
+            self.__active = False  # 过于不活跃的用户
+        songsTriedNum = len(self.__songsTried)
+        songsTriedMean = np.mean([np.sum(actionList) for songId, actionList in self.__songsTried.items()])
+        if songsTriedNum <= 1 and songsTriedMean <= 1:
+            self.__active = False
+        # entropy = utils.entropy(self.__actonTrace)
+        # entropyMax = utils.entropy([1 for __ in range(utils.days)])
+        # percent = entropy / entropyMax
+        # actionMean = np.mean(self.__actonTrace[np.nonzero(self.__actonTrace)])
+        # if actionMean <= 2 and percent < 0.1:
+        #     self.__active = False
+        # if not self.__active:
         #     savePath = os.path.join(utils.resultPath, 'inactive users')
-        #     if os.path.exists(savePath):
+        #     if not os.path.exists(savePath):
         #         os.makedirs(savePath)
-        #     plt.figure(figsize=(6, 4))
-        #     self.plotSongsTried([entropy, percent, actionMean])
-        #     plt.savefig(os.path.join(savePath, self.__id + "songs.png"))
-        #     plt.clf()
-        #     self.plotSongsTriedTrace([entropy, percent, actionMean])
-        #     plt.savefig(os.path.join(savePath, self.__id + "trace.png"))
+        #     plt.figure(figsize=(8, 8))
+        #     self.plotSongsTriedTrace([playSum, downloadSum, collectSum, songsTriedNum,
+        #                          songsTriedMean, entropy, percent, actionMean])
+        #     plt.savefig(os.path.join(savePath, self.__id + ".png"))
         #     plt.close()
         return
 
@@ -85,16 +79,21 @@ class User(object):
         plt.legend([p[1], d[1], c[1]], ['play', 'download', 'collect'])
         plt.xlabel('songs')
         plt.ylabel('counts')
-        plt.title('total songs:' + str(len(self.__songsTried)) + '\n' + \
-                  str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]) + '-' + str(self.__isActive))
+        plt.title(str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]) + '\n' + \
+                  str(title[3]) + '-' + str(title[4]) + '\n' + \
+                  str(title[5]) + '-' + str(title[6]) + '-' + str(title[7]))
 
     def plotSongsTriedTrace(self, title):
-        plt.figure(figsize=(6, 4))
+        plt.figure(figsize=(8, 8))
         plt.plot(self.__actonTrace, 'bo', self.__actonTrace, 'b-')
         plt.xlabel('days')
         plt.ylabel('counts')
-        plt.title('user:' + str(self.__id) + '\n' + \
-                  str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]) + '-' + str(self.__isActive))
+        plt.title(str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]) + '\n' + \
+                  str(title[3]) + '-' + str(title[4]) + '\n' + \
+                  str(title[5]) + '-' + str(title[6]) + '-' + str(title[7]))
 
     def isActive(self):
-        return self.__isActive
+        return self.__active
+
+    def getActionTrace(self):
+        return self.__actonTrace
