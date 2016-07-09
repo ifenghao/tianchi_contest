@@ -45,14 +45,6 @@ def genModel(artist, song, model, embedDim, interval):
     return yPredict
 
 
-def itergenModel(artist, song, model, embedDim, interval, testsize):
-    XTrain, yTrain, mean, var = iterpp.fprocess(artist, song, embedDim, interval)
-    yPredict = model.train(XTrain, yTrain, testsize)
-    yPredict = yPredict * var + mean
-    yPredict[yPredict < 0] = 0  # 预测值出现负数直接归零
-    return yPredict
-
-
 def fout(embedDim, interval, distance):
     artistObjectFile = os.path.join(utils.allResultPath, 'artistsObjectDict.pkl')
     artistsObjectDict = cPickle.load(open(artistObjectFile, 'r'))
@@ -78,9 +70,9 @@ def fout(embedDim, interval, distance):
                 # # 随机森林模型
                 # yPredict2 = genModel(artist, song, rfModel, embedDim, interval, distance)
                 # GBRT模型
-                yPredict3 = itergenModel(artist, song, itergbrtModel, embedDim, interval, distance)
+                yPredict3 = genModel(artist, song, itergbrtModel, embedDim, interval)
                 # 完全随机森林模型
-                yPredict4 = itergenModel(artist, song, itererfModel, embedDim, interval, distance)
+                yPredict4 = genModel(artist, song, itererfModel, embedDim, interval)
             else:
                 print 'mix2 ' + str(traceLength) + ' ' + str(trainLength)
                 # # SVR模型

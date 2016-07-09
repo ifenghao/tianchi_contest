@@ -62,7 +62,9 @@ class Artist(object):
                 self.__songsOwned.pop(songId)
                 combineSongs += 1
         print 'combine:' + str(combineSongs) + '/' + str(totalSongs)
-        unpopularSongs = Song('unpopularSongsGroup', [0, 0, 0, 0, 0])
+        if combineSongs==0:
+            return
+        unpopularSongs = Song('unpopularSongsGroup', [0, 0, '000000', 0, -1])
         unpopularSongs.setTrace(unpopularSongsTrace)
         unpopularSongs.setCumulateEA(unpopularSongsCumulateEA)
         unpopularSongs.makeMean()
@@ -89,7 +91,7 @@ class Artist(object):
             os.makedirs(savePath)
         for songId, song in self.__songsOwned.items():
             plt.figure(figsize=(6, 4))
-            song.plotTrace([0,0,0])
+            song.plotTrace([0,0,0,0])
             plt.savefig(os.path.join(savePath, songId + "--.png"))
             plt.close()
 

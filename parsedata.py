@@ -30,7 +30,7 @@ if not os.path.exists(utils.resultPath):
 artistsDict = cPickle.load(open(utils.artistsPickleFile, 'r'))
 songsDict = cPickle.load(open(utils.songsPickleFile, 'r'))
 artistsObjectDict = {}
-artistsTotalTrace = np.array([[0 for __ in range(utils.days)] for __ in range(4)])
+artistsTotalTrace = np.array([[0. for __ in range(utils.days)] for __ in range(4)])
 for artistId, songsList in artistsDict.items():
     artist = Artist(artistId)
     artist.makeSongsOwned(songsList, songsDict)

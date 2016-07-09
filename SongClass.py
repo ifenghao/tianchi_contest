@@ -45,13 +45,10 @@ class Song(object):
         self.__mean = np.mean(self.__trace, axis=1)
 
     def makePopular(self, artistMean):
-        threshold = 2
+        threshold = 1
         actionMean = np.sum(self.__mean[:3])
         usersMean = self.__mean[3]
-        play = self.__trace[0]
-        totalDays = len(play)
-        noPlayDays = len(play[play == 0])
-        if actionMean >= threshold and usersMean >= threshold and noPlayDays <= totalDays / 4:
+        if actionMean >= threshold and usersMean >= threshold / 2:
             if actionMean >= np.sum(artistMean[:3]) and usersMean >= artistMean[3]:
                 self.__popular = True
             else:
@@ -67,7 +64,7 @@ class Song(object):
                     #     if not os.path.exists(savePath):
                     #         os.makedirs(savePath)
                     #     plt.figure(figsize=(8, 8))
-                    #     self.plotTrace([actionMean, usersMean, noPlayDays])
+                    #     self.plotTrace([actionMean, usersMean, np.sum(artistMean[:3]), artistMean[3]])
                     #     plt.savefig(os.path.join(savePath, self.__id + ".png"))
                     #     plt.close()
 
@@ -105,13 +102,17 @@ class Song(object):
         plt.title('songId:' + self.__id + '\n' + \
                   str(self.__issueTime) + '-' + str(self.__initPlay) + \
                   '-' + str(self.__language) + '-' + str(self.__popular) + '\n' + \
-                  str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]))
+                  str(title[0]) + '-' + str(title[1]) + '-' + str(title[2]) + '-' + str(title[3]))
 
     def setTrace(self, trace):
         self.__trace = trace
+        self.__emptyDays = utils.days - trace.shape[1]
 
     def setCumulateEA(self, cumulateEA):
         self.__cumulateEA = cumulateEA
+
+    def setPercentInSongs(self, percentInSongs):
+        self.__percentInSongs = percentInSongs
 
     def setPopular(self, bool):
         self.__popular = bool

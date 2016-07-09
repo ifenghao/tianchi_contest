@@ -3,24 +3,27 @@ __author__ = 'zfh'
 
 import os
 import cPickle
+import warnings
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 import utils
 import preprocess as pp
-import erfModel, gbrtModel
+import erfModel, gbrtModel, svrModel
 
-finalResultPath = os.path.join(utils.allResultPath, 'finalout0518')
+now=time.strftime('%Y%m%d',time.localtime(time.time()))
+finalResultPath = os.path.join(utils.allResultPath, 'finalout'+now)
 
 
 def plotResult(yPredict3, yPredict4):
     # p1tag = plt.plot(yPredict1, 'bo', yPredict1, 'b-')
     # p2tag = plt.plot(yPredict2, 'go', yPredict2, 'g-')
     p3tag = plt.plot(yPredict3, 'co', yPredict3, 'c-')
-    p4tag = plt.plot(yPredict4, 'ro', yPredict4, 'r-')
+    p4tag = plt.plot(yPredict4, 'yo', yPredict4, 'y-')
     plt.legend([p3tag[1], p4tag[1]],
-               ['GBRT', 'erf'])
+               ['gbrt', 'erf'])
     plt.xlabel('test days')
     plt.ylabel('counts')
 
@@ -31,44 +34,41 @@ def writecsv(finalResultFile, artistId, yPredictSum):
             file.write(','.join([artistId, str(int(round(yPredictSum[num]))), utils.num2date(num)]) + '\n')
 
 
-def genModel(artist, song, model, embedDim, interval, testsize):
-    XTrain, yTrain, mean, var = pp.fprocess(artist, song, embedDim, interval)
-    yPredict = model.train(XTrain, yTrain, testsize)
+def genModel(artist, song, model, embedDim, interval):
+    array, mean, var = pp.fprocess(artist, song)
+    yPredict = model.train(array, embedDim, interval)
     yPredict = yPredict * var + mean
     yPredict[yPredict < 0] = 0  # 预测值出现负数直接归零
     return yPredict
 
 
-def fout(embedDim, interval, testsize):
+def fout(embedDim, interval, distance):
     artistObjectFile = os.path.join(utils.allResultPath, 'artistsObjectDict.pkl')
     artistsObjectDict = cPickle.load(open(artistObjectFile, 'r'))
-    modelParamsDict = {}
     plt.figure(figsize=(6, 4))
     artistNum = 0
     for artistId, artist in artistsObjectDict.items():
         artistNum += 1
         print artistNum
-        modelParamsDict[artistId] = {}
         savePath = os.path.join(utils.resultPath, artistId)
         if not os.path.exists(savePath):
             os.makedirs(savePath)
         # yPredictSum1 = np.zeros(testsize)
-        # yPredictSum2 = np.zeros(testsize)
-        yPredictSum3 = np.zeros(testsize)
-        yPredictSum4 = np.zeros(testsize)
-        # yPredictSum5 = np.zeros(testsize)
+        # yPredictSum2 = np.zeros(distance)
+        yPredictSum3 = np.zeros(distance)
+        yPredictSum4 = np.zeros(distance)
         for songId, song in artist.getSongsOwned().items():
-            print songId
-            # SVR模型
-            # yPredict1 = genModel(artist, song, svrModel, embedDim, interval, testsize)
-            # 随机森林模型
-            # yPredict2 = genModel(artist, song, rfModel, embedDim, interval, testsize)
+            traceLength = np.array(song.getTrace()).shape[1]
+            trainLength = pp.XTrainLength(traceLength, embedDim, interval, 7)  # 训练集长度
+            print 'iterated ' + str(traceLength) + ' ' + str(trainLength)
+            # # SVR模型
+            # yPredict1 = genModel(artist, song, svrModel, embedDim, interval)
+            # # 随机森林模型
+            # yPredict2 = genModel(artist, song, rfModel, embedDim, interval, distance)
             # GBRT模型
-            yPredict3 = genModel(artist, song, gbrtModel, embedDim, interval, testsize)
+            yPredict3 = genModel(artist, song, gbrtModel, embedDim, interval)
             # 完全随机森林模型
-            yPredict4 = genModel(artist, song, erfModel, embedDim, interval, testsize)
-            # xgboost模型
-            # yPredict5 = genModel(artist, song, xgbModel, embedDim, interval, testsize)
+            yPredict4 = genModel(artist, song, erfModel, embedDim, interval)
             plotResult(yPredict3, yPredict4)
             plt.savefig(os.path.join(savePath, 'song ' + songId + ".png"))
             plt.clf()
@@ -76,7 +76,6 @@ def fout(embedDim, interval, testsize):
             # yPredictSum2 += yPredict2
             yPredictSum3 += yPredict3
             yPredictSum4 += yPredict4
-            # yPredictSum5 += yPredict5
         plotResult(yPredictSum3, yPredictSum4)
         plt.savefig(os.path.join(savePath, 'artist ' + artistId + ".png"))
         plt.clf()
@@ -88,19 +87,18 @@ def fout(embedDim, interval, testsize):
         writecsv(finalResultFile3, artistId, yPredictSum3)
         finalResultFile4 = os.path.join(finalResultPath, 'erf.csv')
         writecsv(finalResultFile4, artistId, yPredictSum4)
-        # finalResultFile5 = os.path.join(finalResultPath, 'xgb.csv')
-        # writecsv(finalResultFile5, artistId, yPredictSum5)
 
 
 if __name__ == '__main__':
+    warnings.filterwarnings("ignore")
     if not os.path.exists(utils.resultPath):
         os.makedirs(utils.resultPath)
     if not os.path.exists(finalResultPath):
         os.makedirs(finalResultPath)
-    testsize = 60
+    distance = 60
     embedDim = 7
     interval = 0
-    fout(embedDim, interval, testsize)
+    fout(embedDim, interval, distance)
     # for embedDim in range(1, 6):
     #     for interval in range(6):
     #         fout(embedDim, interval, testsize)
